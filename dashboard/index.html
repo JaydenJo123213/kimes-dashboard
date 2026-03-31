@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KIMES 2026 방문객 현황</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+    header .updated { font-size: 0.78rem; opacity: 0.7; }
+    #overseas-btn {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      border-radius: 20px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    #overseas-btn:hover { background: rgba(255,255,255,0.15); }
+    #overseas-btn.active { background: #e94560; border-color: #e94560; }
+    /* ── 해외바이어 패널 ── */
+    #overseas-panel {
+      display: none;
+      background: #fff8f8;
+      border-bottom: 2px solid #e94560;
+      padding: 16px var(--pad) 20px;
+    }
+    #overseas-panel.visible { display: block; }
+    .overseas-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .overseas-header h2 { font-size: 1rem; font-weight: 800; color: #c0392b; }
+    .overseas-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 700px) { .overseas-cards { grid-template-columns: repeat(2, 1fr); } }
+    .overseas-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 4px rgba(233,69,96,.12);
+      border-left: 3px solid #e94560;
+    }
+    .overseas-card .label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+    .overseas-card .value { font-size: 1.5rem; font-weight: 800; color: #c0392b; }
+    .overseas-tables {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .overseas-tables { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .overseas-tables { grid-template-columns: 1fr; } }
+    .overseas-table-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      overflow-x: auto;
+    }
+    .overseas-table-box .t-title { font-size: 0.8rem; font-weight: 700; color: #c0392b; margin-bottom: 10px; }
+    /* ── 공통 패딩 변수 ── */
+    :root { --pad: 20px; }
+    @media (max-width: 600px) { :root { --pad: 10px; } }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 16px var(--pad) 8px;
+    }
+    @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .card .label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+    .card .value { font-size: 1.6rem; font-weight: 800; color: #0f3460; }
+    @media (max-width: 600px) { .card .value { font-size: 1.3rem; } }
+    .card.doctor .value { color: #e94560; }
+    .row-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px var(--pad) 0;
+    }
+    .row-one {
+      padding: 12px var(--pad) 0;
+    }
+    .row-one:last-child { padding-bottom: 24px; }
+    @media (max-width: 700px) { .row-two { grid-template-columns: 1fr; } }
+    .chart-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px 16px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .chart-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .table-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px 16px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .table-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    table.reg {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    @media (max-width: 600px) { table.reg { font-size: 0.75rem; } }
+    table.reg th {
+      background: #f5f7fa;
+      color: #333;
+      font-weight: 700;
+      padding: 7px 10px;
+      text-align: right;
+      border: 1px solid #dde1e7;
+      white-space: nowrap;
+    }
+    table.reg th:first-child,
+    table.reg th:nth-child(2) { text-align: left; }
+    table.reg td {
+      padding: 6px 10px;
+      text-align: right;
+      border: 1px solid #e8eaed;
+      white-space: nowrap;
+      color: #222;
+    }
+    table.reg td:first-child { text-align: left; font-weight: 700; }
+    table.reg td.sub-date { text-align: left; font-weight: 400; color: #666; padding-left: 20px; }
+    table.reg tr.total-row td { font-weight: 700; border-top: 2px solid #ccc; }
+    table.reg tr.ref-row td { color: #0f3460; font-style: italic; background: #f0f4fa; }
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .badge.dup   { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
+    .badge.dedup { background: #eaf3ff; color: #1a5276; border: 1px solid #bee3f8; }
+    .error-msg {
+      padding: 60px 32px;
+      text-align: center;
+      color: #e94560;
+      font-size: 1rem;
+    }
+    /* ── 탭 네비게이션 ── */
+    .tab-nav {
+      background: #fff;
+      border-bottom: 1px solid #dde1e7;
+      display: flex;
+      padding: 0 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #0f3460; }
+    .tab-btn.active { color: #0f3460; border-bottom-color: #0f3460; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* ── 버블차트 탭 ── */
+    #tab-bubble { padding: 16px var(--pad) 24px; }
+    .bubble-controls {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 12px;
+    }
+    .bubble-controls .ctrl-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #888;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .job-slicer { display: flex; flex-wrap: wrap; gap: 6px; }
+    .job-btn {
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 20px;
+      border: 1.5px solid #dde1e7;
+      background: #f5f7fa;
+      color: #555;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .job-btn:hover { border-color: #0f3460; color: #0f3460; }
+    .job-btn.active { background: #0f3460; border-color: #0f3460; color: #fff; }
+    .bubble-layout {
+      display: grid;
+      grid-template-columns: 1fr 180px;
+      gap: 12px;
+      align-items: start;
+    }
+    @media (max-width: 800px) { .bubble-layout { grid-template-columns: 1fr; } }
+    .bubble-canvas-wrap {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    #bubbleCanvas { display: block; width: 100%; height: auto; cursor: crosshair; }
+    .bubble-stat-bar {
+      font-size: 0.8rem;
+      color: #555;
+      padding: 8px 14px;
+      border-top: 1px solid #eee;
+      background: #fafbfc;
+    }
+    .bubble-legend {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .bubble-legend .leg-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #888;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .leg-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #333;
+      border-radius: 4px;
+      transition: opacity 0.15s;
+    }
+    .leg-item.hidden { opacity: 0.35; }
+    .leg-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    #bubble-tooltip {
+      position: fixed;
+      background: rgba(20,20,40,0.92);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      display: none;
+      z-index: 9999;
+      max-width: 220px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>KIMES 2026 방문객 현황</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="updated" id="updated-time">데이터 로딩 중...</span>
+      <button id="overseas-btn" onclick="toggleOverseas()">🌍 해외바이어</button>
+    </div>
+  </header>
+
+  <!-- 해외바이어 패널 -->
+  <div id="overseas-panel">
+    <div class="overseas-header">
+      <h2>🌍 해외바이어 현황</h2>
+      <span style="font-size:0.78rem;color:#888;">국적이 대한민국이 아닌 순방문객 기준</span>
+    </div>
+    <div class="overseas-cards">
+      <div class="overseas-card">
+        <div class="label">해외바이어 수</div>
+        <div class="value" id="ov-unique">—</div>
+      </div>
+      <div class="overseas-card">
+        <div class="label">전체 대비 비율</div>
+        <div class="value" id="ov-ratio">—</div>
+      </div>
+      <div class="overseas-card">
+        <div class="label">국가 수</div>
+        <div class="value" id="ov-countries">—</div>
+      </div>
+    </div>
+    <div class="overseas-tables">
+      <div class="overseas-table-box">
+        <div class="t-title">국가별 방문객</div>
+        <div id="ov-nat-table"></div>
+      </div>
+      <div class="overseas-table-box">
+        <div class="t-title">날짜별 방문객</div>
+        <div id="ov-date-table"></div>
+      </div>
+      <div class="overseas-table-box">
+        <div class="t-title">직업분류별</div>
+        <div id="ov-job-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 네비게이션 -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-visitor">방문객 현황</button>
+    <button class="tab-btn" data-tab="tab-bubble">부스 스캔 현황</button>
+  </nav>
+
+  <!-- Tab 1: 방문객 현황 -->
+  <div class="tab-panel active" id="tab-visitor">
+    <div class="cards">
+      <div class="card">
+        <div class="label">전체 스캔</div>
+        <div class="value" id="total-scans">—</div>
+      </div>
+      <div class="card">
+        <div class="label">순 방문객</div>
+        <div class="value" id="unique-visitors">—</div>
+      </div>
+      <div class="card doctor">
+        <div class="label">의사 방문객</div>
+        <div class="value" id="doctor-count">—</div>
+      </div>
+      <div class="card doctor">
+        <div class="label">의사 비율</div>
+        <div class="value" id="doctor-ratio">—</div>
+      </div>
+    </div>
+
+    <!-- Row 1: 시간대별 차트 + 날짜별 등록유형 표 -->
+    <div class="row-two">
+      <div class="chart-box">
+        <div class="chart-title">시간대별 입장 추이 (날짜별) <span class="badge dup">중복 포함</span></div>
+        <canvas id="hourlyChart"></canvas>
+      </div>
+      <div class="table-box">
+        <div class="table-title">날짜별 등록 유형 <span class="badge dedup">중복 제거</span></div>
+        <div id="date-reg-table"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: 홀별 막대 차트 + 홀별 스캔 현황 표 (히트맵) -->
+    <div class="row-two">
+      <div class="chart-box">
+        <div class="chart-title">홀별 입장객 수 (날짜별) <span class="badge dup">중복 포함</span></div>
+        <canvas id="hallChart"></canvas>
+      </div>
+      <div class="table-box">
+        <div class="table-title">홀별 입장객 현황 <span class="badge dup">중복 포함</span></div>
+        <div id="hall-heat-table"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: 직업분류별 날짜 표 -->
+    <div class="row-one" style="padding-bottom:24px;">
+      <div class="table-box">
+        <div class="table-title">직업분류별 입장객 수 (날짜별) <span class="badge dedup">중복 제거</span></div>
+        <div id="job-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: 부스 스캔 현황 -->
+  <div class="tab-panel" id="tab-bubble">
+    <div class="bubble-controls">
+      <div class="ctrl-label">직업 유형 필터</div>
+      <div class="job-slicer" id="jobSlicer"></div>
+    </div>
+    <div class="bubble-layout">
+      <div class="bubble-canvas-wrap">
+        <canvas id="bubbleCanvas"></canvas>
+        <details id="calibration-panel" style="margin:8px 0;background:#f7f9fc;border:1px solid #e0e4ea;border-radius:8px;padding:10px 14px;">
+          <summary style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#555;user-select:none;">
+            🔧 좌표 보정 (클릭하여 펼치기)
+          </summary>
+          <p style="font-size:0.74rem;color:#888;margin:6px 0 10px;">이미지 좌/우/상/하 경계에 해당하는 데이터 좌표값을 맞춰주세요.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;">
+            <label style="font-size:0.78rem;color:#555;">
+              좌측 경계 X <span id="xmin-val">19</span>
+              <input type="range" id="sl-xmin" min="-500" max="500" step="1" value="19"
+                style="width:100%;margin-top:3px;"
+                oninput="coordRange.x0=+this.value;document.getElementById('xmin-val').textContent=this.value;drawBubbles()">
+            </label>
+            <label style="font-size:0.78rem;color:#555;">
+              우측 경계 X <span id="xmax-val">972</span>
+              <input type="range" id="sl-xmax" min="500" max="3000" step="1" value="972"
+                style="width:100%;margin-top:3px;"
+                oninput="coordRange.x1=+this.value;document.getElementById('xmax-val').textContent=this.value;drawBubbles()">
+            </label>
+            <label style="font-size:0.78rem;color:#555;">
+              상단 경계 Y <span id="ymin-val">37</span>
+              <input type="range" id="sl-ymin" min="-500" max="500" step="1" value="37"
+                style="width:100%;margin-top:3px;"
+                oninput="coordRange.y0=+this.value;document.getElementById('ymin-val').textContent=this.value;drawBubbles()">
+            </label>
+            <label style="font-size:0.78rem;color:#555;">
+              하단 경계 Y <span id="ymax-val">961</span>
+              <input type="range" id="sl-ymax" min="500" max="3000" step="1" value="961"
+                style="width:100%;margin-top:3px;"
+                oninput="coordRange.y1=+this.value;document.getElementById('ymax-val').textContent=this.value;drawBubbles()">
+            </label>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+            <button onclick="resetCalibration()" style="font-size:0.75rem;padding:4px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;">초기화</button>
+            <span id="calib-code" style="font-size:0.72rem;color:#888;font-family:monospace;"></span>
+          </div>
+        </details>
+        <div class="bubble-stat-bar" id="bubbleStatBar">표시 업체: —개 | 총 스캔: —건</div>
+      </div>
+      <div>
+        <div class="bubble-legend">
+          <div class="leg-title">홀 범례</div>
+          <div id="hallLegend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bubble-tooltip"></div>
+
+  <script>
+    const fmt = n => Number(n).toLocaleString('ko-KR');
+
+    // 날짜별 색상 팔레트
+    const DATE_COLORS = [
+      { border: '#0f3460', bg: 'rgba(15,52,96,0.75)' },
+      { border: '#e94560', bg: 'rgba(233,69,96,0.75)' },
+      { border: '#533483', bg: 'rgba(83,52,131,0.75)' },
+      { border: '#2d6a4f', bg: 'rgba(45,106,79,0.75)' },
+      { border: '#f4a261', bg: 'rgba(244,162,97,0.75)' },
+    ];
+
+    function dateLabel(d) {
+      // "2026-03-19" → "3/19"
+      const parts = d.split('-');
+      return parts.length === 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : d;
+    }
+
+    async function loadData() {
+      const paths = [
+        '../output/dashboard_data.json',
+        './output/dashboard_data.json',
+        'output/dashboard_data.json'
+      ];
+
+      let data = null;
+      for (const p of paths) {
+        try {
+          const r = await fetch(p + '?t=' + Date.now());
+          if (r.ok) { data = await r.json(); break; }
+        } catch (_) {}
+      }
+
+      if (!data) {
+        document.body.innerHTML = '<div class="error-msg">⚠ dashboard_data.json을 불러올 수 없습니다.<br>python run.py --input [CSV 경로] 를 먼저 실행하세요.</div>';
+        return;
+      }
+
+      // Summary cards
+      const s = data.summary_cards;
+      document.getElementById('total-scans').textContent     = fmt(s.total_scans);
+      document.getElementById('unique-visitors').textContent = fmt(s.unique_visitors);
+      document.getElementById('doctor-count').textContent    = fmt(s.doctor_count);
+      document.getElementById('doctor-ratio').textContent    = s.doctor_ratio + '%';
+      document.getElementById('updated-time').textContent    = '최종 업데이트: ' + data.generated_at.replace('T', ' ').slice(0, 16);
+
+      renderOverseas(data.overseas_buyers || null, s.unique_visitors);
+
+      // ── 홀별 × 날짜별 grouped bar (x축=날짜, dataset=홀)
+      {
+        const { labels: halls, dates, by_date } = data.hall_chart;
+
+        const HALL_COLORS = [
+          { border: '#0f3460', bg: 'rgba(15,52,96,0.75)' },
+          { border: '#e94560', bg: 'rgba(233,69,96,0.75)' },
+          { border: '#533483', bg: 'rgba(83,52,131,0.75)' },
+          { border: '#2d6a4f', bg: 'rgba(45,106,79,0.75)' },
+          { border: '#f4a261', bg: 'rgba(244,162,97,0.75)' },
+          { border: '#457b9d', bg: 'rgba(69,123,157,0.75)' },
+        ];
+
+        // 홀별로 dataset 생성, 각 날짜의 값을 순서대로
+        const datasets = halls.map((hall, i) => {
+          const c = HALL_COLORS[i % HALL_COLORS.length];
+          return {
+            label: hall,
+            data: dates.map(d => by_date[d][i]),
+            backgroundColor: c.bg,
+            borderColor: c.border,
+            borderWidth: 1.5,
+            borderRadius: 4,
+          };
+        });
+
+        new Chart(document.getElementById('hallChart'), {
+          type: 'bar',
+          data: { labels: dates.map(dateLabel), datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { callback: v => fmt(v) } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // ── 시간대별 × 날짜별 multi-line
+      {
+        const { labels, dates, by_date } = data.hourly_chart;
+        const datasets = dates.map((d, i) => {
+          const c = DATE_COLORS[i % DATE_COLORS.length];
+          return {
+            label: dateLabel(d),
+            data: by_date[d],
+            borderColor: c.border,
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 4,
+            borderWidth: 2,
+          };
+        });
+
+        new Chart(document.getElementById('hourlyChart'), {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { callback: v => fmt(v) } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // ── 홀별 히트맵 테이블 (행=홀, 열=날짜)
+      {
+        const { labels: halls, dates, by_date } = data.hall_chart;
+        // hall × date 값 재구성 (by_date[d][i] = d날짜 i번째 홀 값)
+        const hallDateVals = halls.map((_, i) => dates.map(d => by_date[d][i]));
+        const rowTotals = hallDateVals.map(row => row.reduce((s, v) => s + v, 0));
+        const allVals = hallDateVals.flat();
+        const maxVal = Math.max(...allVals);
+
+        const heatColor = v => {
+          const ratio = maxVal > 0 ? v / maxVal : 0;
+          const r = Math.round(255 - ratio * 60);
+          const g = Math.round(255 - ratio * 160);
+          const b = Math.round(255 - ratio * 160);
+          return ratio < 0.05 ? '' : `background:rgb(${r},${g},${b});`;
+        };
+
+        const header = `<tr>
+          <th>출입구</th>
+          ${dates.map(d => `<th>${dateLabel(d)}</th>`).join('')}
+          <th>총 합계</th>
+        </tr>`;
+        const grandTotal = rowTotals.reduce((s, v) => s + v, 0);
+        const rows = halls.map((h, i) => {
+          const cols = hallDateVals[i].map((v, j) => {
+            const pct = rowTotals[i] > 0 ? (v / rowTotals[i] * 100).toFixed(1) : '0.0';
+            return `<td style="${heatColor(v)}">${fmt(v)}<br><span style="font-size:0.75em;opacity:0.7">${pct}%</span></td>`;
+          }).join('');
+          const rowPct = grandTotal > 0 ? (rowTotals[i] / grandTotal * 100).toFixed(1) : '0.0';
+          return `<tr><td>${h} 출입구</td>${cols}<td style="font-weight:700">${fmt(rowTotals[i])}<br><span style="font-size:0.75em;opacity:0.7">${rowPct}%</span></td></tr>`;
+        });
+        document.getElementById('hall-heat-table').innerHTML =
+          `<table class="reg"><thead>${header}</thead><tbody>${rows.join('')}</tbody></table>`;
+      }
+
+      // ── 날짜별 등록유형 (전치: 행=유형, 열=날짜)
+      {
+        const { reg_types, by_date, dates } = data.reg_table;
+        // 하드코딩 기준값 (날짜별 전체 순방문객)
+        const REF = { '2026-03-19': 16496, '2026-03-20': 20366, '2026-03-21': 13399, '2026-03-22': 8142 };
+        const refTotal = Object.values(REF).reduce((s, v) => s + v, 0);
+
+        const headerRow = `<tr>
+          <th></th>
+          ${dates.map(d => `<th>${dateLabel(d)}</th>`).join('')}
+          <th>합계</th>
+        </tr>`;
+        // 기준 행 (시스포유 출입증 기준)
+        const refRow = `<tr class="ref-row">
+          <td>시스포유(출입증 기준)</td>
+          ${dates.map(d => `<td>${fmt(REF[d] ?? 0)}명</td>`).join('')}
+          <td>${fmt(refTotal)}명</td>
+        </tr>`;
+        const bodyRows = reg_types.map(t => {
+          const vals = dates.map(d => by_date[d][t]);
+          const rowTotal = vals.reduce((s, v) => s + v, 0);
+          return `<tr>
+            <td>${t}</td>
+            ${vals.map(v => `<td>${fmt(v)}</td>`).join('')}
+            <td>${fmt(rowTotal)}</td>
+          </tr>`;
+        });
+        // 날짜별 소계 행 (날짜 내 중복제거 합산 — 재방문자 중복 포함)
+        const colTotals = dates.map(d => reg_types.reduce((s, t) => s + by_date[d][t], 0));
+        const colGrand  = colTotals.reduce((s, v) => s + v, 0);
+        const colTotalRow = `<tr class="total-row">
+          <td>날짜별 소계 *</td>
+          ${colTotals.map(v => `<td>${fmt(v)}</td>`).join('')}
+          <td>${fmt(colGrand)}</td>
+        </tr>`;
+        // 전체 기간 순방문객 합계 (출입구 기준, 전체 기간 중복 제거 = 순방문객 카드와 동일)
+        const { total } = data.reg_table;
+        const trueTotal = reg_types.reduce((s, t) => s + total[t], 0);
+        const trueTotalRow = `<tr class="total-row" style="border-top:3px solid #aaa;">
+          <td>전체 순방문객 합계</td>
+          ${dates.map(() => `<td>—</td>`).join('')}
+          <td>${fmt(trueTotal)}</td>
+        </tr>`;
+        document.getElementById('date-reg-table').innerHTML =
+          `<table class="reg"><thead>${headerRow}</thead><tbody>${refRow}${bodyRows.join('')}${colTotalRow}${trueTotalRow}</tbody></table>`;
+        const note = document.createElement('p');
+        note.style.cssText = 'font-size:0.74rem;color:#aaa;margin-top:7px;';
+        note.textContent = '※ 시스포유 데이터는 메디컬코리아, GMEP는 제외';
+        document.getElementById('date-reg-table').appendChild(note);
+      }
+
+      // ── 직업분류별 날짜 표 (행=직업, 열=날짜+합계, 히트맵)
+      {
+        const { labels: jobs, dates, by_date, totals } = data.job_chart;
+        const allVals = jobs.flatMap(j => dates.map(d => by_date[j][d]));
+        const maxVal = Math.max(...allVals);
+        const heatColor = v => {
+          if (v === 0 || maxVal === 0) return '';
+          const ratio = v / maxVal;
+          const r = Math.round(255 - ratio * 60);
+          const g = Math.round(255 - ratio * 160);
+          const b = Math.round(255 - ratio * 160);
+          return `background:rgb(${r},${g},${b});`;
+        };
+        const header = `<tr>
+          <th>직업분류</th>
+          ${dates.map(d => `<th>${dateLabel(d)}</th>`).join('')}
+          <th>합계</th>
+        </tr>`;
+        const rows = jobs.map(j => {
+          const cols = dates.map(d => `<td style="${heatColor(by_date[j][d])}">${fmt(by_date[j][d])}</td>`).join('');
+          return `<tr><td>${j}</td>${cols}<td style="font-weight:700">${fmt(totals[j])}</td></tr>`;
+        }).join('');
+        // 날짜별 합계 행
+        const dateSums = dates.map(d => jobs.reduce((s, j) => s + by_date[j][d], 0));
+        const grandSum = jobs.reduce((s, j) => s + totals[j], 0);
+        const footerRow = `<tr class="total-row">
+          <td>합계</td>
+          ${dateSums.map(v => `<td>${fmt(v)}</td>`).join('')}
+          <td>${fmt(grandSum)}</td>
+        </tr>`;
+        document.getElementById('job-table').innerHTML =
+          `<table class="reg"><thead>${header}</thead><tbody>${rows}${footerRow}</tbody></table>`;
+        // 합계가 순방문객(45,405)과 다를 경우 주석 표시
+        const totalUnique = data.summary_cards.unique_visitors;
+        if (grandSum !== totalUnique) {
+          const diff = totalUnique - grandSum;
+          const note2 = document.createElement('p');
+          note2.style.cssText = 'font-size:0.74rem;color:#aaa;margin-top:6px;';
+          note2.textContent = '※ 합계 ' + fmt(grandSum) + '명: 날짜별 중복 제거 특성상 실제 순방문객(' + fmt(totalUnique) + '명)과 차이가 있을 수 있습니다.';
+          document.getElementById('job-table').appendChild(note2);
+        }
+      }
+    }
+
+    loadData();
+
+    // ── 탭 전환
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'tab-bubble' && !bubbleLoaded) loadBubbleData();
+      });
+    });
+
+    // ══════════════════════════════════════════════
+    // TAB 2: 부스 스캔 현황 (버블 차트)
+    // ══════════════════════════════════════════════
+    let bubbleLoaded = false;
+    let bubbleData = null;
+    let hiddenHalls = new Set();
+    let selectedJob = '전체';
+    let currentBubbles = [];
+
+    const HALL_COLORS_BUBBLE = {
+      'Hall A':    { fill: 'rgba(220,50,50,0.7)',   border: '#c0392b' },
+      'Hall B':    { fill: 'rgba(20,60,140,0.7)',   border: '#0f3460' },
+      'Hall C':    { fill: 'rgba(120,50,180,0.7)',  border: '#7d3c98' },
+      'Hall D':    { fill: 'rgba(39,174,96,0.7)',   border: '#1e8449' },
+      'Hall E':    { fill: 'rgba(230,126,34,0.7)',  border: '#ca6f1e' },
+      '그랜드 볼룸': { fill: 'rgba(41,128,185,0.7)', border: '#1a6ea8' },
+      '기타':       { fill: 'rgba(150,150,150,0.7)', border: '#888' },
+    };
+    function getHallColor(hall) { return HALL_COLORS_BUBBLE[hall] || HALL_COLORS_BUBBLE['기타']; }
+
+    let coordRange = { x0: 19, x1: 972, y0: 37, y1: 961 };
+
+    function resetCalibration() {
+      coordRange = { x0: 19, x1: 972, y0: 37, y1: 961 };
+      ['xmin','xmax','ymin','ymax'].forEach(k => {
+        const def = { xmin: 19, xmax: 972, ymin: 37, ymax: 961 };
+        document.getElementById('sl-' + k).value = def[k];
+        document.getElementById(k + '-val').textContent = def[k];
+      });
+      drawBubbles();
+    }
+
+    async function loadBubbleData() {
+      bubbleLoaded = true;
+      let data = null;
+      try {
+        const r = await fetch('./bubble_data.json?t=' + Date.now());
+        if (r.ok) data = await r.json();
+      } catch (_) {}
+      if (!data) {
+        document.getElementById('tab-bubble').innerHTML =
+          '<div class="error-msg">&#9888; bubble_data.json을 불러올 수 없습니다.</div>';
+        return;
+      }
+      bubbleData = data;
+
+      // 직업 슬라이서
+      const slicer = document.getElementById('jobSlicer');
+      ['전체', ...(data.jobs || [])].forEach(job => {
+        const btn = document.createElement('button');
+        btn.className = 'job-btn' + (job === '전체' ? ' active' : '');
+        btn.textContent = job;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.job-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedJob = job;
+          drawBubbles();
+        });
+        slicer.appendChild(btn);
+      });
+
+      // 홀 범례
+      const legendEl = document.getElementById('hallLegend');
+      Object.entries(HALL_COLORS_BUBBLE).forEach(([hall, c]) => {
+        const item = document.createElement('div');
+        item.className = 'leg-item';
+        item.dataset.hall = hall;
+        item.innerHTML = `<div class="leg-dot" style="background:${c.fill};border:2px solid ${c.border}"></div><span>${hall}</span>`;
+        item.addEventListener('click', () => {
+          if (hiddenHalls.has(hall)) hiddenHalls.delete(hall);
+          else hiddenHalls.add(hall);
+          item.classList.toggle('hidden');
+          drawBubbles();
+        });
+        legendEl.appendChild(item);
+      });
+
+      // 이미지 로드 후 첫 렌더
+      const img = new Image();
+      img.src = './floorplan.jpg';
+      img.onload = () => { bubbleData._img = img; drawBubbles(); };
+      img.onerror = () => drawBubbles();
+    }
+
+    function drawBubbles() {
+      if (!bubbleData) return;
+      const canvas = document.getElementById('bubbleCanvas');
+      const items = selectedJob === '전체'
+        ? (bubbleData.all || [])
+        : (bubbleData.by_job && bubbleData.by_job[selectedJob]) || [];
+      const visible = items.filter(d => !hiddenHalls.has(d.hall));
+
+      // 캔버스 크기: 이미지 비율 유지
+      const img = bubbleData._img;
+      const W = canvas.parentElement.clientWidth || 800;
+      const H = img ? Math.round(W * img.naturalHeight / img.naturalWidth) : Math.round(W * 0.9);
+      canvas.width = W;
+      canvas.height = H;
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+      if (img) ctx.drawImage(img, 0, 0, W, H);
+
+      const { x0, x1, y0, y1 } = coordRange;
+      const toCanvasX = x => (x - x0) / (x1 - x0) * W;
+      const toCanvasY = y => (y - y0) / (y1 - y0) * H;
+
+      const maxScan = Math.max(...visible.map(d => d.scan_count), 1);
+      currentBubbles = [];
+
+      visible.forEach(d => {
+        const cx = toCanvasX(d.x);
+        const cy = toCanvasY(d.y);
+        const r = Math.max(6, Math.sqrt(d.scan_count / maxScan) * 38);
+        const c = getHallColor(d.hall);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = c.fill;
+        ctx.fill();
+        ctx.strokeStyle = c.border;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        currentBubbles.push({ cx, cy, r, d });
+      });
+
+      const total = visible.reduce((s, d) => s + d.scan_count, 0);
+      document.getElementById('bubbleStatBar').textContent =
+        `표시 업체: ${visible.length}개 | 총 스캔: ${fmt(total)}건`;
+    }
+
+    // 툴팁
+    const tooltip = document.getElementById('bubble-tooltip');
+    document.getElementById('bubbleCanvas').addEventListener('mousemove', e => {
+      const rect = e.target.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const hit = currentBubbles.find(b => Math.hypot(b.cx - mx, b.cy - my) <= b.r);
+      if (hit) {
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top  = (e.clientY - 10) + 'px';
+        const d = hit.d;
+        tooltip.innerHTML = `<b>${d.name}</b><br>홀: ${d.hall} | 부스: ${d.booth || '—'}<br>스캔: ${fmt(d.scan_count)}건`;
+      } else {
+        tooltip.style.display = 'none';
+      }
+    });
+    document.getElementById('bubbleCanvas').addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+
+    // ── 해외바이어 토글
+    function toggleOverseas() {
+      const btn = document.getElementById('overseas-btn');
+      const panel = document.getElementById('overseas-panel');
+      btn.classList.toggle('active');
+      panel.classList.toggle('visible');
+    }
+
+    function renderOverseas(ov, totalUnique) {
+      if (!ov) {
+        document.getElementById('overseas-btn').disabled = true;
+        document.getElementById('overseas-btn').title = '국적 데이터 없음';
+        return;
+      }
+      document.getElementById('ov-unique').textContent = fmt(ov.unique_visitors);
+      const ratio = totalUnique > 0 ? (ov.unique_visitors / totalUnique * 100).toFixed(1) : '0.0';
+      document.getElementById('ov-ratio').textContent = ratio + '%';
+      document.getElementById('ov-countries').textContent = fmt(Object.keys(ov.nationality_counts).length);
+
+      // 국가별 테이블
+      const natEntries = Object.entries(ov.nationality_counts).sort((a, b) => b[1] - a[1]);
+      const natRows = natEntries.map(([k, v]) => {
+        const pct = ov.unique_visitors > 0 ? (v / ov.unique_visitors * 100).toFixed(1) : '0.0';
+        return `<tr><td style="text-align:left;font-weight:600;">${k}</td><td>${fmt(v)}</td><td>${pct}%</td></tr>`;
+      }).join('');
+      document.getElementById('ov-nat-table').innerHTML =
+        `<table class="reg"><thead><tr><th style="text-align:left;">국가</th><th>방문객</th><th>비율</th></tr></thead><tbody>${natRows}</tbody></table>`;
+
+      // 날짜별 테이블
+      const dateEntries = Object.entries(ov.by_date).sort((a, b) => a[0].localeCompare(b[0]));
+      const dateRows = dateEntries.map(([d, v]) =>
+        `<tr><td style="text-align:left;font-weight:600;">${dateLabel(d)}</td><td>${fmt(v)}</td></tr>`
+      ).join('');
+      document.getElementById('ov-date-table').innerHTML =
+        `<table class="reg"><thead><tr><th style="text-align:left;">날짜</th><th>방문객</th></tr></thead><tbody>${dateRows}</tbody></table>`;
+
+      // 직업분류별 테이블
+      const jobEntries = Object.entries(ov.job_counts).sort((a, b) => b[1] - a[1]);
+      const jobRows = jobEntries.map(([k, v]) => {
+        const pct = ov.unique_visitors > 0 ? (v / ov.unique_visitors * 100).toFixed(1) : '0.0';
+        return `<tr><td style="text-align:left;font-weight:600;">${k}</td><td>${fmt(v)}</td><td>${pct}%</td></tr>`;
+      }).join('');
+      document.getElementById('ov-job-table').innerHTML =
+        `<table class="reg"><thead><tr><th style="text-align:left;">직업분류</th><th>방문객</th><th>비율</th></tr></thead><tbody>${jobRows}</tbody></table>`;
+    }
+  </script>
+</body>
+</html>
